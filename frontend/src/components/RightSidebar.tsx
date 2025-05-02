@@ -1,15 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getTrendingHashtags } from '../services/api';
+
+interface TrendingHashtag {
+  name: string;
+  count: number;
+}
 
 const RightSidebar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [trendingHashtags, setTrendingHashtags] = useState<TrendingHashtag[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const trendingTopics = [
-    { id: 1, name: 'Programming', tweets: '125K' },
-    { id: 2, name: 'JavaScript', tweets: '98K' },
-    { id: 3, name: 'React', tweets: '85K' },
-    { id: 4, name: 'TypeScript', tweets: '72K' },
-    { id: 5, name: 'NodeJS', tweets: '65K' },
-  ];
+  useEffect(() => {
+    const fetchTrendingHashtags = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getTrendingHashtags(5);
+        setTrendingHashtags(response.data.hashtags);
+      } catch (error) {
+        console.error('Failed to fetch trending hashtags:', error);
+        setTrendingHashtags([
+          { name: 'programming', count: 125 },
+          { name: 'javascript', count: 98 },
+          { name: 'react', count: 85 },
+          { name: 'typescript', count: 72 },
+          { name: 'nodejs', count: 65 },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchTrendingHashtags();
+  }, []);
   
   const whoToFollow = [
     { id: 1, name: 'React', username: 'reactjs', avatar: 'https://via.placeholder.com/40' },
@@ -54,31 +78,41 @@ const RightSidebar: React.FC = () => {
       {/* Trending */}
       <div className="bg-gray-50 rounded-2xl mb-4">
         <h2 className="text-xl font-bold p-4">Trends for you</h2>
-        <ul>
-          {trendingTopics.map((topic) => (
-            <li key={topic.id} className="px-4 py-3 hover:bg-gray-100 cursor-pointer">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-gray-500">Trending in Tech</p>
-                  <p className="font-bold">#{topic.name}</p>
-                  <p className="text-xs text-gray-500">{topic.tweets} Tweets</p>
-                </div>
-                <button className="text-gray-500 hover:text-twitter-blue p-1 rounded-full hover:bg-blue-50">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <g>
-                      <circle cx="5" cy="12" r="2"></circle>
-                      <circle cx="12" cy="12" r="2"></circle>
-                      <circle cx="19" cy="12" r="2"></circle>
-                    </g>
-                  </svg>
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="p-4">
-          <a href="#" className="text-twitter-blue hover:underline">Show more</a>
-        </div>
+        {isLoading ? (
+          <div className="px-4 py-8 text-center text-gray-500">
+            Loading trending topics...
+          </div>
+        ) : (
+          <>
+            <ul>
+              {trendingHashtags.map((hashtag) => (
+                <li key={hashtag.name} className="px-4 py-3 hover:bg-gray-100 cursor-pointer">
+                  <Link to={`/hashtag/${hashtag.name}`} className="block">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs text-gray-500">Trending in Tech</p>
+                        <p className="font-bold">#{hashtag.name}</p>
+                        <p className="text-xs text-gray-500">{hashtag.count} Tweets</p>
+                      </div>
+                      <button className="text-gray-500 hover:text-twitter-blue p-1 rounded-full hover:bg-blue-50">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                          <g>
+                            <circle cx="5" cy="12" r="2"></circle>
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <circle cx="19" cy="12" r="2"></circle>
+                          </g>
+                        </svg>
+                      </button>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="p-4">
+              <Link to="/explore/trends" className="text-twitter-blue hover:underline">Show more</Link>
+            </div>
+          </>
+        )}
       </div>
       
       {/* Who to follow */}

@@ -1,6 +1,7 @@
 const express = require('express');
 const Tweet = require('../models/Tweet');
 const User = require('../models/User');
+const Hashtag = require('../models/Hashtag');
 const jwt = require('jsonwebtoken');
 
 const router = express.Router();
@@ -28,6 +29,34 @@ const auth = async (req, res, next) => {
   }
 };
 
+const extractHashtags = (content) => {
+  const hashtagRegex = /#(\w+)/g;
+  const matches = content.match(hashtagRegex);
+  
+  if (!matches) return [];
+  
+  return matches.map(tag => tag.slice(1).toLowerCase());
+};
+
+const updateHashtags = async (hashtags, tweetId) => {
+  if (!hashtags || hashtags.length === 0) return;
+  
+  const operations = hashtags.map(tag => {
+    return {
+      updateOne: {
+        filter: { name: tag },
+        update: { 
+          $inc: { count: 1 },
+          $addToSet: { tweets: tweetId }
+        },
+        upsert: true
+      }
+    };
+  });
+  
+  await Hashtag.bulkWrite(operations);
+};
+
 router.post('/', auth, async (req, res) => {
   try {
     const { content, media } = req.body;
@@ -36,13 +65,18 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Tweet must have content or media' });
     }
     
+    const hashtags = content ? extractHashtags(content) : [];
+    
     const tweet = new Tweet({
       content: content || '',
       user: req.user._id,
-      media: media || []
+      media: media || [],
+      hashtags: hashtags
     });
     
     await tweet.save();
+    
+    await updateHashtags(hashtags, tweet._id);
     
     await tweet.populate('user', 'name username avatar');
     
@@ -282,6 +316,70 @@ router.delete('/:id', auth, async (req, res) => {
     await tweet.deleteOne();
     
     res.json({ message: 'Tweet deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/hashtags/trending', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    
+    const trendingHashtags = await Hashtag.find()
+      .sort({ count: -1 })
+      .limit(parseInt(limit))
+      .select('name count');
+    
+    res.json({ hashtags: trendingHashtags });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/hashtags/:tag', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const tag = req.params.tag.toLowerCase();
+    
+    const tweets = await Tweet.find({ hashtags: tag })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .populate('user', 'name username avatar');
+    
+    const count = await Tweet.countDocuments({ hashtags: tag });
+    
+    let currentUser = null;
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        currentUser = await User.findById(decoded.userId);
+      } catch (err) {
+      }
+    }
+    
+    const tweetsWithUserStatus = tweets.map(tweet => {
+      const tweetObj = tweet.toObject();
+      
+      if (currentUser) {
+        tweetObj.liked = tweet.likes.includes(currentUser._id);
+        tweetObj.retweeted = tweet.retweets.includes(currentUser._id);
+      } else {
+        tweetObj.liked = false;
+        tweetObj.retweeted = false;
+      }
+      
+      return tweetObj;
+    });
+    
+    res.json({
+      tweets: tweetsWithUserStatus,
+      totalPages: Math.ceil(count / parseInt(limit)),
+      currentPage: parseInt(page),
+      hashtag: tag
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

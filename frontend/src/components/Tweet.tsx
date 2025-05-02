@@ -5,6 +5,7 @@ interface TweetProps {
   tweet: {
     id: string;
     content: string;
+    hashtags?: string[];
     user: {
       id: string;
       username: string;
@@ -100,7 +101,27 @@ const Tweet: React.FC<TweetProps> = ({ tweet }) => {
             </span>
           </div>
           
-          <div className="mb-3 whitespace-pre-wrap">{tweet.content}</div>
+          <div className="mb-3 whitespace-pre-wrap">
+            {tweet.hashtags && tweet.hashtags.length > 0 
+              ? tweet.content.split(' ').map((word, index) => {
+                  if (word.startsWith('#') && tweet.hashtags?.includes(word.slice(1).toLowerCase())) {
+                    return (
+                      <React.Fragment key={index}>
+                        <Link 
+                          to={`/hashtag/${word.slice(1).toLowerCase()}`} 
+                          className="text-twitter-blue hover:underline"
+                        >
+                          {word}
+                        </Link>
+                        {' '}
+                      </React.Fragment>
+                    );
+                  }
+                  return word + ' ';
+                })
+              : tweet.content
+            }
+          </div>
           
           <div className="flex justify-between max-w-md">
             <button className="flex items-center text-gray-500 hover:text-twitter-blue group">

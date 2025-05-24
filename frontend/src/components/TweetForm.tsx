@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
+import { createTweet } from '../services/api'; // Import createTweet
 
 interface TweetFormProps {
-  onNewTweet: (tweet: any) => void;
+  onNewTweet: (tweet: any) => void; // Consider using the Tweet interface from api.ts here
 }
 
 const TweetForm: React.FC<TweetFormProps> = ({ onNewTweet }) => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // const user = JSON.parse(localStorage.getItem('user') || '{}'); // User info will come from backend
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,28 +22,19 @@ const TweetForm: React.FC<TweetFormProps> = ({ onNewTweet }) => {
     setError('');
     
     try {
+      // Call the API service to create the tweet
+      const response = await createTweet({ content: content.trim() });
       
-      const newTweet = {
-        id: Date.now().toString(),
-        content,
-        user: {
-          id: user.id || '1',
-          username: user.username || 'user',
-          name: user.name || 'User Name',
-          avatar: 'https://via.placeholder.com/50',
-        },
-        createdAt: new Date().toISOString(),
-        likes: 0,
-        retweets: 0,
-        comments: 0,
-        liked: false,
-        retweeted: false,
-      };
-      
-      onNewTweet(newTweet);
-      setContent('');
-    } catch (err) {
-      setError('Failed to post tweet');
+      // Call onNewTweet with the tweet from the API response
+      onNewTweet(response.tweet); 
+      setContent(''); // Clear content after successful submission
+    } catch (err: any) {
+      // Handle API errors
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Failed to post tweet. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +64,7 @@ const TweetForm: React.FC<TweetFormProps> = ({ onNewTweet }) => {
               placeholder="What's happening?"
               className="w-full border-none focus:outline-none text-xl resize-none mb-4 bg-transparent"
               rows={3}
-              maxLength={280}
+              maxLength={200} // Changed from 280
             />
             
             <div className="flex items-center justify-between border-t border-twitter-extra-light pt-4">
@@ -140,8 +132,8 @@ const TweetForm: React.FC<TweetFormProps> = ({ onNewTweet }) => {
               <div className="flex items-center">
                 {content.length > 0 && (
                   <div className="mr-4">
-                    <span className={`${content.length > 260 ? 'text-red-500' : 'text-gray-500'}`}>
-                      {280 - content.length}
+                    <span className={`${content.length > 180 ? 'text-red-500' : 'text-gray-500'}`}> {/* Changed 260 to 180 */}
+                      {200 - content.length} {/* Changed 280 to 200 */}
                     </span>
                   </div>
                 )}

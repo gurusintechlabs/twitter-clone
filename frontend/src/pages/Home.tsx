@@ -1,83 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // No longer needed directly
+import { getTweets, Tweet } from '../services/api'; // Import getTweets and Tweet interface
 
 const Sidebar = React.lazy(() => import('../components/Sidebar'));
 const TweetForm = React.lazy(() => import('../components/TweetForm'));
 const TweetList = React.lazy(() => import('../components/TweetList'));
 const RightSidebar = React.lazy(() => import('../components/RightSidebar'));
 
-interface Tweet {
-  id: string;
-  content: string;
-  user: {
-    id: string;
-    username: string;
-    name: string;
-    avatar: string;
-  };
-  createdAt: string;
-  likes: number;
-  retweets: number;
-  comments: number;
-  liked: boolean;
-  retweeted: boolean;
-}
+// Local Tweet interface is removed, using the one from api.ts
 
 const Home: React.FC = () => {
-  const [tweets, setTweets] = useState<Tweet[]>([]);
+  const [tweets, setTweets] = useState<Tweet[]>([]); // Use imported Tweet interface
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1); // For pagination, if needed later
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const fetchTweets = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        
-        setTweets([
-          {
-            id: '1',
-            content: 'Just setting up my Twitter clone!',
-            user: {
-              id: '1',
-              username: 'johndoe',
-              name: 'John Doe',
-              avatar: 'https://via.placeholder.com/50',
-            },
-            createdAt: new Date().toISOString(),
-            likes: 5,
-            retweets: 2,
-            comments: 1,
-            liked: false,
-            retweeted: false,
-          },
-          {
-            id: '2',
-            content: 'This Twitter clone is looking great!',
-            user: {
-              id: '2',
-              username: 'janedoe',
-              name: 'Jane Doe',
-              avatar: 'https://via.placeholder.com/50',
-            },
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            likes: 10,
-            retweets: 3,
-            comments: 2,
-            liked: true,
-            retweeted: false,
-          },
-        ]);
+        const response = await getTweets(page); // Call getTweets from API service
+        setTweets(response.tweets);
+        setTotalPages(response.totalPages);
         setLoading(false);
-      } catch (err) {
-        setError('Failed to fetch tweets');
+      } catch (err: any) {
+        if (err.response && err.response.data && err.response.data.message) {
+          setError(err.response.data.message);
+        } else {
+          setError('Failed to fetch tweets. Please try again.');
+        }
         setLoading(false);
       }
     };
 
     fetchTweets();
-  }, []);
+  }, [page]); // Refetch if page changes
 
-  const handleNewTweet = (tweet: Tweet) => {
-    setTweets([tweet, ...tweets]);
+  const handleNewTweet = (newTweet: Tweet) => { // Use imported Tweet interface
+    setTweets(prevTweets => [newTweet, ...prevTweets]);
   };
 
   if (loading) {

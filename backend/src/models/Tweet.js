@@ -5,13 +5,17 @@ const TweetSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    maxlength: 280
+    maxlength: 200
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+  hashtags: [{
+    type: String,
+    trim: true
+  }],
   likes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -30,7 +34,7 @@ const TweetSchema = new mongoose.Schema({
       type: String,
       required: true,
       trim: true,
-      maxlength: 280
+      maxlength: 200
     },
     createdAt: {
       type: Date,

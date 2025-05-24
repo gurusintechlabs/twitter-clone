@@ -1,6 +1,7 @@
 const express = require('express');
 const Tweet = require('../models/Tweet');
 const User = require('../models/User');
+const Hashtag = require('../models/Hashtag'); // Require Hashtag model
 const jwt = require('jsonwebtoken');
 
 const router = express.Router();
@@ -42,11 +43,77 @@ router.post('/', auth, async (req, res) => {
       media: media || []
     });
     
+    // Extract hashtags
+    if (tweet.content) {
+      const hashtagRegex = /#([a-zA-Z0-9_]+)/g;
+      let match;
+      const extractedHashtags = new Set(); // Use a Set to avoid duplicates
+      while ((match = hashtagRegex.exec(tweet.content)) !== null) {
+        extractedHashtags.add(match[1]);
+      }
+      tweet.hashtags = Array.from(extractedHashtags);
+    }
+
+    // Update hashtag counts
+    if (tweet.hashtags && tweet.hashtags.length > 0) {
+      for (const tag of tweet.hashtags) {
+        await Hashtag.findOneAndUpdate(
+          { tag: tag.toLowerCase() },
+          { $inc: { count: 1 }, $setOnInsert: { tag: tag.toLowerCase() } },
+          { upsert: true, new: true }
+        );
+      }
+    }
+    
     await tweet.save();
     
     await tweet.populate('user', 'name username avatar');
     
     res.status(201).json({ tweet });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /hashtags/trending
+router.get('/hashtags/trending', auth, async (req, res) => {
+  try {
+    const trendingHashtags = await Hashtag.find()
+      .sort({ count: -1 })
+      .limit(10); // Get top 10 trending hashtags
+    res.json({ hashtags: trendingHashtags });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /hashtags/:tag
+router.get('/hashtags/:tag', auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const tag = req.params.tag.toLowerCase(); // Ensure tag is lowercase for query
+
+    const tweets = await Tweet.find({ hashtags: tag }) // Querying by a single tag in an array
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('user', 'name username avatar');
+
+    const count = await Tweet.countDocuments({ hashtags: tag });
+
+    const tweetsWithUserStatus = tweets.map(tweet => {
+      const tweetObj = tweet.toObject();
+      tweetObj.liked = tweet.likes.includes(req.user._id);
+      tweetObj.retweeted = tweet.retweets.includes(req.user._id);
+      return tweetObj;
+    });
+
+    res.json({
+      tweets: tweetsWithUserStatus,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
+      hashtag: req.params.tag // Send back the original tag for display
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

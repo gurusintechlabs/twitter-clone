@@ -1,21 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getTrendingHashtags, Hashtag } from '../services/api';
 
 const RightSidebar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [hashtags, setHashtags] = useState<Hashtag[]>([]);
+  const [loadingTrends, setLoadingTrends] = useState<boolean>(true);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
   
-  const trendingTopics = [
-    { id: 1, name: 'Programming', tweets: '125K' },
-    { id: 2, name: 'JavaScript', tweets: '98K' },
-    { id: 3, name: 'React', tweets: '85K' },
-    { id: 4, name: 'TypeScript', tweets: '72K' },
-    { id: 5, name: 'NodeJS', tweets: '65K' },
-  ];
-  
+  // Static whoToFollow for now, as it's not part of this subtask's dynamic update
   const whoToFollow = [
     { id: 1, name: 'React', username: 'reactjs', avatar: 'https://via.placeholder.com/40' },
     { id: 2, name: 'TypeScript', username: 'typescript', avatar: 'https://via.placeholder.com/40' },
     { id: 3, name: 'Node.js', username: 'nodejs', avatar: 'https://via.placeholder.com/40' },
   ];
+
+  useEffect(() => {
+    const fetchHashtags = async () => {
+      try {
+        setLoadingTrends(true);
+        const response = await getTrendingHashtags();
+        setHashtags(response.hashtags);
+        setTrendsError(null);
+      } catch (err) {
+        setTrendsError('Failed to load trending hashtags.');
+        console.error(err);
+      } finally {
+        setLoadingTrends(false);
+      }
+    };
+
+    fetchHashtags();
+  }, []);
 
   return (
     <div className="hidden lg:block w-80 h-screen sticky top-0 overflow-y-auto p-4">
@@ -54,31 +70,41 @@ const RightSidebar: React.FC = () => {
       {/* Trending */}
       <div className="bg-gray-50 rounded-2xl mb-4">
         <h2 className="text-xl font-bold p-4">Trends for you</h2>
-        <ul>
-          {trendingTopics.map((topic) => (
-            <li key={topic.id} className="px-4 py-3 hover:bg-gray-100 cursor-pointer">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-gray-500">Trending in Tech</p>
-                  <p className="font-bold">#{topic.name}</p>
-                  <p className="text-xs text-gray-500">{topic.tweets} Tweets</p>
-                </div>
-                <button className="text-gray-500 hover:text-twitter-blue p-1 rounded-full hover:bg-blue-50">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                    <g>
-                      <circle cx="5" cy="12" r="2"></circle>
-                      <circle cx="12" cy="12" r="2"></circle>
-                      <circle cx="19" cy="12" r="2"></circle>
-                    </g>
-                  </svg>
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="p-4">
-          <a href="#" className="text-twitter-blue hover:underline">Show more</a>
-        </div>
+        {loadingTrends && <p className="px-4 py-3 text-gray-500">Loading trends...</p>}
+        {trendsError && <p className="px-4 py-3 text-red-500">{trendsError}</p>}
+        {!loadingTrends && !trendsError && hashtags.length === 0 && (
+          <p className="px-4 py-3 text-gray-500">No trends right now.</p>
+        )}
+        {!loadingTrends && !trendsError && hashtags.length > 0 && (
+          <ul>
+            {hashtags.map((hashtag) => (
+              <li key={hashtag._id} className="px-4 py-3 hover:bg-gray-100 cursor-pointer">
+                <Link to={`/hashtags/${hashtag.tag}`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-gray-500">Trending</p>
+                      <p className="font-bold text-twitter-blue hover:underline">#{hashtag.tag}</p>
+                      <p className="text-xs text-gray-500">{hashtag.count} Tweets</p>
+                    </div>
+                    <button className="text-gray-500 hover:text-twitter-blue p-1 rounded-full hover:bg-blue-50">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                        <g>
+                          <circle cx="5" cy="12" r="2"></circle>
+                          <circle cx="12" cy="12" r="2"></circle>
+                          <circle cx="19" cy="12" r="2"></circle>
+                        </g>
+                      </svg>
+                    </button>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {/* Optionally, keep a "Show more" link if pagination or a dedicated trends page is planned */}
+        {/* <div className="p-4">
+          <Link to="/explore/trends" className="text-twitter-blue hover:underline">Show more</Link>
+        </div> */}
       </div>
       
       {/* Who to follow */}

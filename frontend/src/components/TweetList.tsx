@@ -1,23 +1,9 @@
 import React from 'react';
-import Tweet from './Tweet';
+import TweetComponent from './Tweet'; // Renamed Tweet to TweetComponent to avoid conflict with interface
+import { Tweet } from '../services/api'; // Import the Tweet interface
 
 interface TweetListProps {
-  tweets: Array<{
-    id: string;
-    content: string;
-    user: {
-      id: string;
-      username: string;
-      name: string;
-      avatar: string;
-    };
-    createdAt: string;
-    likes: number;
-    retweets: number;
-    comments: number;
-    liked: boolean;
-    retweeted: boolean;
-  }>;
+  tweets: Tweet[]; // Use the Tweet interface from api.ts
 }
 
 const TweetList: React.FC<TweetListProps> = ({ tweets }) => {
@@ -35,7 +21,7 @@ const TweetList: React.FC<TweetListProps> = ({ tweets }) => {
   return (
     <div>
       {tweets.map((tweet) => (
-        <Tweet key={tweet.id} tweet={tweet} />
+        <TweetComponent key={tweet._id} tweet={tweet} /> 
       ))}
     </div>
   );
